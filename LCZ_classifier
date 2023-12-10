@@ -1,0 +1,296 @@
+# Name: LCZ classifier
+# Description: Maps the Local Climate Zones in a city by accepting the fuzzy layer inputs for each LCZ
+# Requirements: Numpy, ArcPy, Spatial Analyst Extension
+
+##################################################################################################
+# Import system modules
+import arcpy
+import arcinfo
+from arcpy import env 
+from arcpy.sa import *
+from arcpy.sa import *
+import numpy as np
+import timeit
+
+print "Start processing..."
+Starttime = timeit.default_timer()
+
+##################################################################################################
+# Check out the ArcGIS extension licenses
+arcpy.CheckOutExtension("Spatial")
+arcpy.CheckOutExtension("DataInteroperability")
+
+##################################################################################################
+#Getting values of neighbors
+
+def Getneighbor(array,y,x):
+    try:
+        return array[y,x]
+    except ValueError:
+        return 0
+    except IndexError:
+        return 0
+
+##################################################################################################
+#Getting majority number in a list
+
+def majority_list(num_list):
+    try:
+        idx, ctr = 0, 1
+        
+        for i in range(1, len(num_list)):
+            if num_list[idx] == num_list[i]:
+                ctr += 1
+            else:
+                ctr -= 1
+                if ctr == 0:
+                    idx = i
+                    ctr = 1
+        
+        return num_list[idx]
+
+    except IndexError:
+        return 0
+
+##################################################################################################
+#Remove all zeros from list
+
+def Removeallzeros(nlist):
+    num_list = nlist
+    for x in range(num_list.count(0)):
+        num_list.remove(0)
+    return num_list
+
+##################################################################################################
+#Class for storing LCZ list per pixel
+
+class LCZstore:
+    def __init__(self, LCZlist):
+        self.LCZlist = LCZlist
+
+    def GetLCZlist(self):
+        return self.LCZlist      
+
+    def GetLCZvalue(self, index):
+        return self.LCZlist[index]
+
+
+##################################################################################################
+#Class for storing LCZs of neighborhood pixels with highest membership
+
+class Neighborsstore:
+    def __init__(self, Neighborslist):
+        self.Neighborslist = Neighborslist
+
+    def GetNeighborslist(self):
+        return self.Neighborslist    
+    '''
+    def GetNeighborNumber(self):
+        return self.pixel[index]
+
+    def Getmostfrequentneighbor(self):
+        return self.pixel[index]
+    '''
+
+##################################################################################################
+# Set environment settings
+env.workspace = "C:\Users\User\Desktop\GUHeat\LCZ\Quezon City\GIS method\Classification\LCZ\Fuzzy layers"
+env.outputZFlag = "Enabled"
+env.overwriteOutput = True
+
+##################################################################################################
+# Set local variables
+'''
+LCZ1 = arcpy.Raster("LCZ1.tif")
+LCZ2 = arcpy.Raster("LCZ2.tif")
+LCZ3 = arcpy.Raster("LCZ3.tif")
+LCZ4 = arcpy.Raster("LCZ4.tif")
+LCZ5 = arcpy.Raster("LCZ5.tif")
+LCZ6 = arcpy.Raster("LCZ6.tif")
+LCZ7 = arcpy.Raster("LCZ7.tif")
+LCZ8 = arcpy.Raster("LCZ8.tif")
+LCZ9 = arcpy.Raster("LCZ9.tif")
+LCZ10 = arcpy.Raster("LCZ10.tif")
+LCZA = arcpy.Raster("LCZA.tif")
+LCZB = arcpy.Raster("LCZB.tif")
+LCZC = arcpy.Raster("LCZC.tif")
+LCZD = arcpy.Raster("LCZD.tif")
+LCZE = arcpy.Raster("LCZE.tif")
+LCZF = arcpy.Raster("LCZF.tif")
+LCZG = arcpy.Raster("LCZG.tif")
+'''
+LCZ1 = arcpy.Raster(arcpy.GetParameterAsText(0))
+LCZ2 = arcpy.Raster(arcpy.GetParameterAsText(1))
+LCZ3 = arcpy.Raster(arcpy.GetParameterAsText(2))
+LCZ4 = arcpy.Raster(arcpy.GetParameterAsText(3))
+LCZ5 = arcpy.Raster(arcpy.GetParameterAsText(4))
+LCZ6 = arcpy.Raster(arcpy.GetParameterAsText(5))
+LCZ7 = arcpy.Raster(arcpy.GetParameterAsText(6))
+LCZ8 = arcpy.Raster(arcpy.GetParameterAsText(7))
+LCZ9 = arcpy.Raster(arcpy.GetParameterAsText(8))
+LCZ10 = arcpy.Raster(arcpy.GetParameterAsText(9))
+LCZA = arcpy.Raster(arcpy.GetParameterAsText(10))
+LCZB = arcpy.Raster(arcpy.GetParameterAsText(11))
+LCZC = arcpy.Raster(arcpy.GetParameterAsText(12))
+LCZD = arcpy.Raster(arcpy.GetParameterAsText(13))
+LCZE = arcpy.Raster(arcpy.GetParameterAsText(14))
+LCZF = arcpy.Raster(arcpy.GetParameterAsText(15))
+LCZG = arcpy.Raster(arcpy.GetParameterAsText(16))
+
+spatial_ref = arcpy.Describe(LCZ1).spatialReference
+xmin = LCZ1.extent.XMin
+ymin = LCZ1.extent.YMin
+lowerleftpt = arcpy.Point(xmin, ymin)
+cellsizex = LCZ1.meanCellWidth
+cellsizey = LCZ1.meanCellHeight
+
+##################################################################################################
+# Set rasters as arrays
+
+Array1 = arcpy.RasterToNumPyArray(LCZ1)
+Array2 = arcpy.RasterToNumPyArray(LCZ2)
+Array3 = arcpy.RasterToNumPyArray(LCZ3)
+Array4 = arcpy.RasterToNumPyArray(LCZ4)
+Array5 = arcpy.RasterToNumPyArray(LCZ5)
+Array6 = arcpy.RasterToNumPyArray(LCZ6)
+Array7 = arcpy.RasterToNumPyArray(LCZ7)
+Array8 = arcpy.RasterToNumPyArray(LCZ8)
+Array9 = arcpy.RasterToNumPyArray(LCZ9)
+Array10 = arcpy.RasterToNumPyArray(LCZ10)
+ArrayA = arcpy.RasterToNumPyArray(LCZA)
+ArrayB = arcpy.RasterToNumPyArray(LCZB)
+ArrayC = arcpy.RasterToNumPyArray(LCZC)
+ArrayD = arcpy.RasterToNumPyArray(LCZD)
+ArrayE = arcpy.RasterToNumPyArray(LCZE)
+ArrayF = arcpy.RasterToNumPyArray(LCZF)
+ArrayG = arcpy.RasterToNumPyArray(LCZG)
+rows = len(Array1)
+columns = len(Array1[0])
+
+##################################################################################################
+# Classification
+
+ArrayLCZlist = np.empty((rows,columns), dtype=object)
+ArrayLCZprobability = np.zeros((rows,columns))
+ArrayLCZ1stclass = np.zeros((rows,columns))
+ArrayLCZ2ndclass = np.zeros((rows,columns))
+
+
+##Part1 initial classification
+
+for y in range(len(Array1)):                                               
+    for x in range(len(Array1[y])):
+        LCZlist = [Array1[y,x], Array2[y,x], Array3[y,x], Array4[y,x], Array5[y,x], Array6[y,x], Array7[y,x],
+                    Array8[y,x], Array9[y,x], Array10[y,x], ArrayA[y,x], ArrayB[y,x], ArrayC[y,x], ArrayD[y,x],
+                    ArrayE[y,x], ArrayF[y,x], ArrayG[y,x]]
+        ArrayLCZlist[y,x] = LCZstore(LCZlist)
+        
+        maxval = max(LCZlist)
+        ArrayLCZprobability[y,x] = maxval
+
+        LCZ1stclass = 0
+        if maxval > 0:
+            LCZ1stclass = LCZlist.index(maxval) + 1
+        ArrayLCZ1stclass[y,x] = LCZ1stclass
+
+        LCZlist2 = LCZlist
+        LCZlist2.remove(max(LCZlist2))
+        max2val = max(LCZlist2)
+        LCZ2ndclass = 0
+        if max2val > 0:
+            LCZ2ndclass = LCZlist.index(max2val) + 1
+        ArrayLCZ2ndclass[y,x] = LCZ2ndclass
+
+##Part2 aggregation
+
+ArrayNeighbors1stclass = np.empty((rows,columns), dtype=object)
+        
+for i in range(10):
+    for y in range(len(Array1)):                                               
+        for x in range(len(Array1[y])):
+            Neighborslist1stclass = [Getneighbor(ArrayLCZ1stclass,y-1,x-1), Getneighbor(ArrayLCZ1stclass,y-1,x), Getneighbor(ArrayLCZ1stclass,y-1,x+1),
+                                    Getneighbor(ArrayLCZ1stclass,y,x-1),                                        Getneighbor(ArrayLCZ1stclass,y,x+1),
+                                    Getneighbor(ArrayLCZ1stclass,y+1,x-1), Getneighbor(ArrayLCZ1stclass,y+1,x), Getneighbor(ArrayLCZ1stclass,y+1,x+1)]
+            ArrayNeighbors1stclass[y,x] = Neighborsstore(Neighborslist1stclass)
+    for y in range(len(Array1)):                                               
+        for x in range(len(Array1[y])):
+            class1st = ArrayLCZ1stclass[y,x]
+            class2nd = ArrayLCZ2ndclass[y,x]
+            Neighborlist1stclass = ArrayNeighbors1stclass[y,x].GetNeighborslist()
+            if ArrayLCZprobability[y,x] >= 0:
+                Neighborlist1stclass = Removeallzeros(Neighborlist1stclass)
+            CountNeighbor1stclass = Neighborlist1stclass.count(class1st)
+            CountNeighbor2ndclass = Neighborlist1stclass.count(class2nd)
+            if CountNeighbor1stclass <= 2:
+                if CountNeighbor2ndclass > 2:
+                    ArrayLCZ1stclass[y,x] = class2nd
+                    ArrayLCZ2ndclass[y,x] = class1st
+                else:
+                    ArrayLCZ1stclass[y,x] = majority_list(Neighborlist1stclass)
+                    ArrayLCZ2ndclass[y,x] = class1st        
+
+
+
+##Part3 Zoning
+
+ArrayCircleNeighborhood = np.empty((rows,columns), dtype=object)
+ALCZ = ArrayLCZ1stclass
+
+for i in range(10):
+    for y in range(len(Array1)):                                               
+        for x in range(len(Array1[y])):
+            CircleNeighborslist = [    Getneighbor(ALCZ,y+4,x-4),Getneighbor(ALCZ,y+4,x-3),Getneighbor(ALCZ,y+4,x-2),Getneighbor(ALCZ,y+4,x-1),Getneighbor(ALCZ,y+4,x),Getneighbor(ALCZ,y+4,x+1),Getneighbor(ALCZ,y+4,x+2),Getneighbor(ALCZ,y+4,x+3),Getneighbor(ALCZ,y+4,x+4),
+                                       Getneighbor(ALCZ,y+3,x-4),Getneighbor(ALCZ,y+3,x-3),Getneighbor(ALCZ,y+3,x-2),Getneighbor(ALCZ,y+3,x-1),Getneighbor(ALCZ,y+3,x),Getneighbor(ALCZ,y+3,x+1),Getneighbor(ALCZ,y+3,x+2),Getneighbor(ALCZ,y+3,x+3),Getneighbor(ALCZ,y+3,x+4),
+                                       Getneighbor(ALCZ,y+2,x-4),Getneighbor(ALCZ,y+2,x-3),Getneighbor(ALCZ,y+2,x-2),Getneighbor(ALCZ,y+2,x-1),Getneighbor(ALCZ,y+2,x),Getneighbor(ALCZ,y+2,x+1),Getneighbor(ALCZ,y+2,x+2),Getneighbor(ALCZ,y+2,x+3),Getneighbor(ALCZ,y+2,x+4),
+                                       Getneighbor(ALCZ,y+1,x-4),Getneighbor(ALCZ,y+1,x-3),Getneighbor(ALCZ,y+1,x-2),Getneighbor(ALCZ,y+1,x-1),Getneighbor(ALCZ,y+1,x),Getneighbor(ALCZ,y+1,x+1),Getneighbor(ALCZ,y+1,x+2),Getneighbor(ALCZ,y+1,x+3),Getneighbor(ALCZ,y+1,x+4),
+                                       Getneighbor(ALCZ,y  ,x-4),Getneighbor(ALCZ,y,  x-3),Getneighbor(ALCZ,y,  x-2),Getneighbor(ALCZ,y,  x-1),Getneighbor(ALCZ,y,  x),Getneighbor(ALCZ,y,  x+1),Getneighbor(ALCZ,y,  x+2),Getneighbor(ALCZ,y,  x+3),Getneighbor(ALCZ,y,  x+4),
+                                       Getneighbor(ALCZ,y-1,x-4),Getneighbor(ALCZ,y-1,x-3),Getneighbor(ALCZ,y-1,x-2),Getneighbor(ALCZ,y-1,x-1),Getneighbor(ALCZ,y-1,x),Getneighbor(ALCZ,y-1,x+1),Getneighbor(ALCZ,y-1,x+2),Getneighbor(ALCZ,y-1,x+3),Getneighbor(ALCZ,y-1,x+4),
+                                       Getneighbor(ALCZ,y-2,x-4),Getneighbor(ALCZ,y-2,x-3),Getneighbor(ALCZ,y-2,x-2),Getneighbor(ALCZ,y-2,x-1),Getneighbor(ALCZ,y-2,x),Getneighbor(ALCZ,y-2,x+1),Getneighbor(ALCZ,y-2,x+2),Getneighbor(ALCZ,y-2,x+3),Getneighbor(ALCZ,y-2,x+4),
+                                       Getneighbor(ALCZ,y-3,x-4),Getneighbor(ALCZ,y-3,x-3),Getneighbor(ALCZ,y-3,x-2),Getneighbor(ALCZ,y-3,x-1),Getneighbor(ALCZ,y-3,x),Getneighbor(ALCZ,y-3,x+1),Getneighbor(ALCZ,y-3,x+2),Getneighbor(ALCZ,y-3,x+3),Getneighbor(ALCZ,y-3,x+4),
+                                       Getneighbor(ALCZ,y-4,x-4),Getneighbor(ALCZ,y-4,x-3),Getneighbor(ALCZ,y-4,x-2),Getneighbor(ALCZ,y-4,x-1),Getneighbor(ALCZ,y-4,x),Getneighbor(ALCZ,y-4,x+1),Getneighbor(ALCZ,y-4,x+2),Getneighbor(ALCZ,y-4,x+3),Getneighbor(ALCZ,y-4,x+4)]
+            ArrayCircleNeighborhood[y,x] = Neighborsstore(CircleNeighborslist)
+
+            Neighborslist1stclass = [Getneighbor(ArrayLCZ1stclass,y-1,x-1), Getneighbor(ArrayLCZ1stclass,y-1,x), Getneighbor(ArrayLCZ1stclass,y-1,x+1),
+                                    Getneighbor(ArrayLCZ1stclass,y,x-1),                                        Getneighbor(ArrayLCZ1stclass,y,x+1),
+                                    Getneighbor(ArrayLCZ1stclass,y+1,x-1), Getneighbor(ArrayLCZ1stclass,y+1,x), Getneighbor(ArrayLCZ1stclass,y+1,x+1)]
+            ArrayNeighbors1stclass[y,x] = Neighborsstore(Neighborslist1stclass)
+            
+    for y in range(len(Array1)):                                               
+        for x in range(len(Array1[y])):
+            class1st = ArrayLCZ1stclass[y,x]
+            CircleNeighborslist = ArrayCircleNeighborhood[y,x].GetNeighborslist()
+            if ArrayLCZprobability[y,x] >= 0:
+                CircleNeighborslist = Removeallzeros(CircleNeighborslist)
+                CountCircleNeighbors = CircleNeighborslist.count(class1st)
+                if CountCircleNeighbors < 13:
+                    ArrayLCZ1stclass[y,x] = majority_list(CircleNeighborslist)
+    for y in range(len(Array1)):                                               
+        for x in range(len(Array1[y])):
+            Neighborslist1stclass = [Getneighbor(ArrayLCZ1stclass,y-1,x-1), Getneighbor(ArrayLCZ1stclass,y-1,x), Getneighbor(ArrayLCZ1stclass,y-1,x+1),
+                                    Getneighbor(ArrayLCZ1stclass,y,x-1),                                        Getneighbor(ArrayLCZ1stclass,y,x+1),
+                                    Getneighbor(ArrayLCZ1stclass,y+1,x-1), Getneighbor(ArrayLCZ1stclass,y+1,x), Getneighbor(ArrayLCZ1stclass,y+1,x+1)]
+            ArrayNeighbors1stclass[y,x] = Neighborsstore(Neighborslist1stclass)
+    for y in range(len(Array1)):                                               
+        for x in range(len(Array1[y])):
+            class1st = ArrayLCZ1stclass[y,x]
+            Neighborlist1stclass = ArrayNeighbors1stclass[y,x].GetNeighborslist()
+            if ArrayLCZprobability[y,x] >= 0:
+                Neighborlist1stclass = Removeallzeros(Neighborlist1stclass)
+                CountNeighbor1stclass = Neighborlist1stclass.count(class1st)
+                if CountNeighbor1stclass <= 2:
+                    ArrayLCZ1stclass[y,x] = majority_list(Neighborlist1stclass) 
+                
+            
+##################################################################################################
+# Saving
+
+LCZ1stclass = arcpy.NumPyArrayToRaster(ArrayLCZ1stclass, lowerleftpt, cellsizex, cellsizey, 0)
+arcpy.DefineProjection_management(LCZ1stclass,spatial_ref)
+##LCZ2ndclass = arcpy.NumPyArrayToRaster(ArrayLCZ2ndclass, lowerleftpt, cellsizex, cellsizey, 0)
+##LCZprobability = arcpy.NumPyArrayToRaster(ArrayLCZprobability, lowerleftpt, cellsizex, cellsizey)
+
+LCZclassificationrasterfile = arcpy.GetParameterAsText(17)
+LCZ1stclass.save(LCZclassificationrasterfile)
+##LCZ1stclass.save("C:\Users\User\Desktop\GUHeat\LCZ\Quezon City\GIS method\Classification\LCZ\LCZ Classification\LCZ.tif")
+##LCZ2ndclass.save("C:\Users\User\Desktop\GUHeat\LCZ\Quezon City\GIS method\Classification\LCZ\LCZ Classification\LCZ2ndclass.tif")
+##LCZprobability.save("C:\Users\User\Desktop\GUHeat\LCZ\Quezon City\GIS method\Classification\LCZ\LCZ Classification\LCZprobability.tif")
