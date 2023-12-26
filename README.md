@@ -1,2 +1,2 @@
 # Local-climate-zones-classifier
-A python code incorporating the ArcPy library to map Local Climate Zones by implementing Fuzzy Logic and Cellular Automata. The study can be accessed through the following link: https://doi.org/10.5194/isprs-archives-XLII-4-W19-199-2019, 2019.
+A python code incorporating the ArcPy library to map Local Climate Zones by implementing Fuzzy Logic and Cellular Automata. The study can be accessed through the following link: https://doi.org/10.5194/isprs-archives-XLII-4-W19-199-2019. The ArcGIS toolbox incorporating this code can be acccesed in the supplementary resource section of this study in my ResearchGate: https://www.researchgate.net/publication/338139180_GIS-BASED_MAPPING_OF_LOCAL_CLIMATE_ZONES_USING_FUZZY_LOGIC_AND_CELLULAR_AUTOMATA
